@@ -15,6 +15,7 @@ import { useIsAdminForTourney } from "../../context/admin/AdminTourneyContext";
 import EditableTourneyName from "./EditableTourneyName";
 import GenerateBracketButton from "./GenerateBracketButton/GenerateBracketButton";
 import SeedPlayersButton from "./SeedPlayersButton/SeedPlayersButton";
+import PullFromDdrToolsButton from "./PullFromDdrToolsButton/PullFromDdrToolsButton";
 import { handleUpdateTourneyName } from "../../handlers/handleUpdateTourneyName";
 import { StatusElement } from "../StatusElement";
 import { toaster } from "../ui/toaster";
@@ -165,18 +166,22 @@ export function TourneyDetails({
                   </HStack>
                 )}
               {!loadingTourneyAdminStatus && isTourneyAdmin && (
-                <Button
-                  colorPalette="purple"
-                  variant="outline"
-                  borderWidth={2}
-                  size="sm"
-                  mb={4}
-                  onClick={() =>
-                    navigate(`/tourney/${tourney.id}/StreamHelper`)
-                  }
-                >
-                  Stream Helper
-                </Button>
+                <HStack mb={4}>
+                  <Button
+                    colorPalette="purple"
+                    variant="outline"
+                    borderWidth={2}
+                    size="sm"
+                    onClick={() =>
+                      navigate(`/tourney/${tourney.id}/StreamHelper`)
+                    }
+                  >
+                    Stream Helper
+                  </Button>
+                  {tourney.status === "In Progress" && (
+                    <PullFromDdrToolsButton rounds={rounds} />
+                  )}
+                </HStack>
               )}
               <Text>Type: {tourney.type}</Text>
               <StatusElement element={tourney} />
