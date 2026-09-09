@@ -14,6 +14,8 @@ export interface PullCommitResult {
   stagesCreated: number;
   scoresRecorded: number;
   advanced: boolean;
+  /** why the round wasn't ended, when ending it was asked for */
+  advanceSkipped?: string;
 }
 
 /**
@@ -86,11 +88,16 @@ export async function handlePullRoundResults(
     player_round_id: number;
     score: number;
   }> = [];
+  const unmapped: string[] = [];
   for (const [playerId, byChart] of Object.entries(pulled.scoresByPlayer)) {
     const playerRoundId = playerRoundIdByTourneyId.get(playerId);
     // a player who isn't in this round any more (removed since the draw) is
-    // skipped rather than failing the whole pull
-    if (!playerRoundId) continue;
+    // skipped rather than failing the whole pull, but their missing scores are
+    // enough to make any ranking built from this round wrong
+    if (!playerRoundId) {
+      unmapped.push(playerId);
+      continue;
+    }
     for (const [chartId, score] of Object.entries(byChart)) {
       const stageId = stageIdByChartId.get(chartId);
       if (!stageId || typeof score !== "number") continue;
@@ -119,14 +126,25 @@ export async function handlePullRoundResults(
     }
   }
 
+  // Advancing decides who is still in the tournament and can't be undone from
+  // the UI, while `handleEndRound` only checks that stages and players exist.
+  // Scores that didn't land would rank those players last on an empty set, so
+  // the round is left open for a human instead.
   let advanced = false;
+  let advanceSkipped: string | undefined;
   if (advance) {
-    await handleEndRound({
-      tourneyId,
-      round: { ...round, status: nextStatus },
-      tourneyType,
-    });
-    advanced = true;
+    if (!scoreRows.length) {
+      advanceSkipped = "no scores landed on this round";
+    } else if (unmapped.length) {
+      advanceSkipped = `${unmapped.length} player(s) in the draw have no entry in this round`;
+    } else {
+      await handleEndRound({
+        tourneyId,
+        round: { ...round, status: nextStatus },
+        tourneyType,
+      });
+      advanced = true;
+    }
   }
 
   return {
@@ -135,5 +153,6 @@ export async function handlePullRoundResults(
     stagesCreated: pulled.charts.length,
     scoresRecorded: scoreRows.length,
     advanced,
+    advanceSkipped,
   };
 }

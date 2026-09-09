@@ -1,4 +1,5 @@
 import {
+  bannedChartCount,
   drawingsForTourney,
   drawnCharts,
   gameKeyForDrawing,
@@ -14,6 +15,10 @@ export interface PulledRound {
   roundId: number;
   round: Round | null;
   charts: DdrToolsChart[];
+  /** ids of charts above that replaced the one originally drawn */
+  pocketPickIds: string[];
+  /** drawn charts left out because they were banned, and so never played */
+  bannedCount: number;
   /** the source's name for the game these charts came from, for provenance */
   gameKey: string | null;
   /** playerTourneyId -> ddr.tools chart id -> score */
@@ -76,6 +81,10 @@ function buildRound(
     roundId,
     round,
     charts,
+    pocketPickIds: charts
+      .filter((c) => drawing.pocketPicks?.[c.id])
+      .map((c) => c.id),
+    bannedCount: bannedChartCount(drawing),
     gameKey: gameKeyForDrawing(state, drawing),
     players: drawing.meta.players,
     scoresByPlayer: drawing.meta.scoresByEntrant ?? {},

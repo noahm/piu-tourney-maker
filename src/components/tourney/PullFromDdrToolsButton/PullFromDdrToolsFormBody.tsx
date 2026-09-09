@@ -165,6 +165,12 @@ function RoundReview({ round }: { round: PulledRound }) {
                 <Text as="span" color="fg.muted">
                   {chart.diffAbbr} {chart.level}
                 </Text>
+                {round.pocketPickIds.includes(chart.id) && (
+                  <Text as="span" color="purple.fg">
+                    {" "}
+                    · pocket pick
+                  </Text>
+                )}
               </Text>
               <Text fontSize="xs" color="fg.muted" flexShrink={0}>
                 {scoresForChart(round, chart.id)
@@ -176,6 +182,12 @@ function RoundReview({ round }: { round: PulledRound }) {
               </Text>
             </HStack>
           ))}
+          {round.bannedCount > 0 && (
+            <Text fontSize="xs" color="fg.muted">
+              {round.bannedCount} banned chart(s) left out — they were drawn but
+              never played
+            </Text>
+          )}
         </VStack>
       )}
     </Box>

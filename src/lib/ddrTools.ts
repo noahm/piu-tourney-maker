@@ -59,12 +59,25 @@ export interface DdrToolsDrawingMeta {
   scoresByEntrant?: Record<string, Record<string, number | undefined>>;
 }
 
+/** a chart a player banned, or pocket-picked over */
+interface DdrToolsChartAction {
+  player: string;
+  chartId: string;
+}
+
 export interface DdrToolsDrawing {
   id: string;
   configId: string;
   meta: DdrToolsDrawingMeta;
   /** chart id -> winning player id */
   winners: Record<string, string | null>;
+  /** chart id -> the ban placed on it, so it was never played */
+  bans?: Record<string, DdrToolsChartAction | null>;
+  /** chart id -> the chart played in its place */
+  pocketPicks?: Record<
+    string,
+    (DdrToolsChartAction & { pick: DdrToolsChart }) | null
+  >;
   subDrawings: Record<string, DdrToolsSubDrawing>;
 }
 
@@ -113,11 +126,29 @@ export function drawingsForTourney(state: DdrToolsState, tourneyId: number) {
   );
 }
 
-/** Charts of a drawing in play order, skipping unresolved player picks. */
+/**
+ * The charts a drawing actually played, in play order.
+ *
+ * Beyond skipping unresolved player picks, this drops charts that were banned
+ * — they were drawn but never played — and swaps in a pocket pick's
+ * replacement where one was taken. The replacement keeps the original chart's
+ * id, because that's the key the scores are recorded under.
+ */
 export function drawnCharts(drawing: DdrToolsDrawing): DdrToolsChart[] {
   return Object.values(drawing.subDrawings)
     .flatMap((sub) => sub.charts)
-    .filter((c) => c.type === "DRAWN");
+    .filter((c) => c.type === "DRAWN" && !drawing.bans?.[c.id])
+    .map((c) => {
+      const pick = drawing.pocketPicks?.[c.id]?.pick;
+      return pick ? { ...pick, id: c.id, type: c.type } : c;
+    });
+}
+
+/** How many drawn charts were banned, and so aren't being written as played. */
+export function bannedChartCount(drawing: DdrToolsDrawing) {
+  return Object.values(drawing.subDrawings)
+    .flatMap((sub) => sub.charts)
+    .filter((c) => c.type === "DRAWN" && !!drawing.bans?.[c.id]).length;
 }
 
 /**

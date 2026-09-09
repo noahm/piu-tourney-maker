@@ -24,9 +24,8 @@ interface Props {
  * become stages and its recorded scores become score rows, optionally ending
  * each round and advancing players.
  *
- * The dialog is a review step rather than a one-click import. Song names don't
- * agree perfectly between the two catalogs, so some charts need a human to
- * pick, and this writes into a live tournament.
+ * The dialog is a review step rather than a one-click import: this writes into
+ * a live tournament, and can end rounds and advance players.
  */
 export default function PullFromDdrToolsButton({ rounds }: Props) {
   const { tourney } = useCurrentTourney();
@@ -95,9 +94,28 @@ export default function PullFromDdrToolsButton({ rounds }: Props) {
           tourney.type ?? null,
           { advance, sourceRoom: room ?? undefined },
         );
-        done.push(
-          `${result.roundName}: ${result.stagesCreated} chart(s), ${result.scoresRecorded} score(s)${result.advanced ? ", advanced" : ""}`,
+        // A committed round can't be pulled again — it would trip the
+        // already-has-stages guard and abort the retry before reaching the
+        // rounds that never ran. Marking it blocked drops it from `ready`.
+        setPlan((prev) =>
+          prev
+            ? {
+                ...prev,
+                rounds: prev.rounds.map((r) =>
+                  r.drawingId === pulled.drawingId
+                    ? { ...r, blocker: "already pulled just now" }
+                    : r,
+                ),
+              }
+            : prev,
         );
+        let line = `${result.roundName}: ${result.stagesCreated} chart(s), ${result.scoresRecorded} score(s)`;
+        if (result.advanced) {
+          line += ", advanced";
+        } else if (result.advanceSkipped) {
+          line += `, not advanced (${result.advanceSkipped})`;
+        }
+        done.push(line);
       }
       toaster.create({
         title: `Pulled ${done.length} match${done.length === 1 ? "" : "es"}`,
